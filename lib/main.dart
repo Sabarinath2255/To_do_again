@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:to_do_again/screens/new_task_screen.dart';
+import 'package:todoagain/screens/new_task_screen.dart';
 import 'screens/routing.dart';
 
 void main() {
@@ -26,15 +26,9 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
 class MyHomePage extends StatelessWidget {
   const MyHomePage({Key? key}) : super(key: key);
-
-  // square(int value){
-  //   print(value*value);
-  // }
-  // var square = (int value){
-  //   print(value*value);
-  // };
 
   @override
   Widget build(BuildContext context) {
@@ -71,24 +65,6 @@ class MyHomePage extends StatelessWidget {
           ActivityCard(header: "Wake up", date: "4th Jan", list: "Daily"),
         ],
       ),
-      /*Container(
-        width: double.infinity,
-        height: double.infinity,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              width: 20,
-              color: Colors.yellow,
-            ),
-            Container(
-              child: Text("abcd"),
-              color: Colors.green,
-            ),
-          ],
-        ),
-      ),*/
     );
   }
 }
@@ -150,36 +126,3 @@ class ActivityCard extends StatelessWidget {
     );
   }
 }
-
-/*class MyHomePage extends StatelessWidget {
-  const MyHomePage({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.blueGrey,
-      appBar: AppBar(
-        backgroundColor: Colors.blue,
-      ),
-      body: Container(
-        padding: EdgeInsets.all(10),
-        child: /*Column(
-          children: [
-            Text("Overdue"),
-            SizedBox(height: 30),
-            Text("Overdue"),
-            Card(
-              color: Colors.yellow,
-              child: Text("Overdue"),
-            ),
-          ],
-        ),*/
-            Column(
-          children: [
-            Container(height: 30),
-          ],
-        ),
-      ),
-    );
-  }
-}*/
