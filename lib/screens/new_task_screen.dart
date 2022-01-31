@@ -1,25 +1,60 @@
+import 'package:flutter/foundation.dart';
 import "package:flutter/material.dart";
 import 'package:intl/intl.dart';
+import 'package:todoagain/task.dart';
+import 'package:todoagain/sqlite.dart';
+import 'routing.dart' as routing;
 
 class NewTaskScreen extends StatefulWidget {
-  const NewTaskScreen({Key? key}) : super(key: key);
-
+  NewTaskScreen({Key? key, this.task}) : super(key: key);
+  final Task? task;
   @override
   _NewTaskScreenState createState() => _NewTaskScreenState();
 }
 
 class _NewTaskScreenState extends State<NewTaskScreen> {
-  DateTime? date = null;
-  String taskName = "";
+  Task task = Task(
+      isFinished: false,
+      isRepeating: false,
+      taskName: "",
+      taskListID: 0,
+      taskID: -1,
+      parentTaskID: null,
+      deadlineDate: null,
+      deadlineTime: null);
   TextEditingController dateController = TextEditingController();
-  List<String> options = [
-    "No Repeat",
-    "Once a Day",
-    "Once a Day(Mon-Fri)",
-    "Once a Week",
-    "Other",
-  ];
-  String repetitionFrequency = "No Repeat";
+  TextEditingController timeController = TextEditingController();
+  RepeatCycle? chosenRepeatCycle;
+  RepeatFrequency repeatFrequency =
+  RepeatFrequency(num: 2, tenure: Tenure.days);
+
+  void datePicker() async {
+    DateTime? pickedDate = await showDatePicker(
+        context: context,
+        initialDate:
+        task.deadlineDate == null ? DateTime.now() : task.deadlineDate!,
+        firstDate: DateTime.now(),
+        //TODO::lastDate should be 50/100/x number of years from now
+        lastDate: DateTime(2101));
+    if (pickedDate != null) {
+      task.deadlineDate = pickedDate;
+      setState(() {});
+      var dateString = DateFormat('EEEE, d MMM, yyyy').format(pickedDate);
+      dateController.text = dateString;
+    }
+  }
+
+  void timePicker() async {
+    TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (pickedTime != null) {
+      task.deadlineTime = pickedTime;
+      setState(() {});
+      timeController.text = pickedTime.format(context);
+    }
+  }
 
   List<DropdownMenuItem<String>> dropdownItemCreator(List<String> itemValues) {
     List<DropdownMenuItem<String>> dropdownMenuItems = [];
@@ -34,9 +69,31 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
     return dropdownMenuItems;
   }
 
+  void saveNewTask() async {
+    Map<String, dynamic> taskAsMap = task.toMap();
+    taskAsMap.remove("taskID");
+    int? taskId = await SqliteDB.insertTask(taskAsMap);
+    if (taskId == null) {
+    } else {
+      Navigator.pop(context);
+      Navigator.pushNamedAndRemoveUntil(
+          context, routing.homeScreenID, (route) => false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    print(widget.task);
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        child: Icon(
+          Icons.check,
+          size: 35,
+        ),
+        onPressed: () {
+          saveNewTask();
+        },
+      ),
       appBar: AppBar(
         title: Text("New Task"),
       ),
@@ -53,20 +110,27 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
                 fontWeight: FontWeight.w900,
               ),
             ),
+            SizedBox(height: 10),
             Row(
               children: [
+                SizedBox(width: 10),
                 Flexible(
                   child: TextField(
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
+                      contentPadding: EdgeInsets.fromLTRB(0, 10, 0, 5),
+                      isDense: true,
                       hintText: "Enter Task Here",
                     ),
+                    onChanged: (String? value) {
+                      task.taskName = value == null ? task.taskName : value;
+                    },
                   ),
                 ),
                 CustomIconButton(iconData: Icons.mic, onPressed: () {}),
               ],
             ),
             SizedBox(
-              height: 80,
+              height: 50,
             ),
 
             //Date Time Input
@@ -77,86 +141,70 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
                 fontWeight: FontWeight.w900,
               ),
             ),
-            Row(
-              children: [
-                Flexible(
-                  child: TextField(
-                    readOnly: true,
-                    controller: dateController,
-                  ),
-                ),
-                CustomIconButton(
-                  iconData: Icons.calendar_today_outlined,
-                  onPressed: () async {
-                    DateTime? pickedDate = await showDatePicker(
-                        context: context,
-                        initialDate: date == null ? DateTime.now() : date!,
-                        firstDate: DateTime.now(),
-                        //TODO::lastDate should be 50/100/x number of years from now
-                        lastDate: DateTime(2101));
-                    if (pickedDate != null) {
-                      date = pickedDate;
-                      setState(() {});
-                      var dateString =
-                      DateFormat('EEEE, d MMM, yyyy').format(pickedDate);
-                      dateController.text = dateString;
-                    }
-                  },
-                ),
-                Visibility(
-                  visible: date == null ? false : true,
-                  child: CustomIconButton(
-                    iconData: Icons.cancel_rounded,
-                    onPressed: () {
-                      date = null;
-                      setState(() {});
-                      dateController.text = "";
-                    },
-                  ),
-                ),
-              ],
+            SizedBox(height: 10),
+            EditableFieldWithCancelButton(
+              hintText: "Date not set",
+              iconData: Icons.calendar_today_outlined,
+              textController: dateController,
+              picker: datePicker,
+              onCancel: () {
+                task.deadlineDate = null;
+                dateController.text = "";
+                task.deadlineTime = null;
+                timeController.text = "";
+                setState(() {});
+              },
+              enableCancelButton: () {
+                return (task.deadlineDate != null);
+              },
             ),
+
             //Time Input
-            Row(
-              children: [
-                Flexible(
-                  child: TextField(
-                    readOnly: true,
-                    controller: dateController,
-                  ),
-                ),
-                CustomIconButton(
-                  iconData: Icons.calendar_today_outlined,
-                  onPressed: () async {
-                    DateTime? pickedDate = await showDatePicker(
-                        context: context,
-                        initialDate: date == null ? DateTime.now() : date!,
-                        firstDate: DateTime.now(),
-                        //TODO::lastDate should be 50/100/x number of years from now
-                        lastDate: DateTime(2101));
-                    if (pickedDate != null) {
-                      date = pickedDate;
-                      setState(() {});
-                      var dateString =
-                      DateFormat('EEEE, d MMM, yyyy').format(pickedDate);
-                      dateController.text = dateString;
-                    }
-                  },
-                ),
-                Visibility(
-                  visible: date == null ? false : true,
-                  child: CustomIconButton(
-                    iconData: Icons.cancel_rounded,
-                    onPressed: () {
-                      date = null;
-                      setState(() {});
-                      dateController.text = "";
-                    },
-                  ),
-                ),
-              ],
+            SizedBox(height: 10),
+            Visibility(
+              visible: task.deadlineDate != null ? true : false,
+              child: EditableFieldWithCancelButton(
+                hintText: "Time not set",
+                iconData: Icons.access_time,
+                textController: timeController,
+                picker: timePicker,
+                onCancel: () {
+                  task.deadlineTime = null;
+                  setState(() {});
+                  timeController.text = "";
+                },
+                enableCancelButton: () {
+                  return (task.deadlineTime != null);
+                },
+              ),
             ),
-            SizedBox(height: 60),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 0, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Notifications",
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    task.deadlineDate != null
+                        ? "Day summary on the same day at 8:00 am."
+                        : "No notifications if date not set",
+                  ),
+                  SizedBox(height: 4),
+                  Visibility(
+                    child: Text(
+                      "Individual notification on time",
+                    ),
+                    visible: task.deadlineTime != null,
+                  ),
+                ],
+              ),
+            ),
+
+            //Repeating Info
+            const SizedBox(height: 40),
             Text(
               "Repeat",
               style: TextStyle(
@@ -164,42 +212,164 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
                 fontWeight: FontWeight.w900,
               ),
             ),
-            DropdownButton<String>(
-              items: dropdownItemCreator(options),
-              value: repetitionFrequency,
-              onChanged: (String? chosenValue) {
-                if (chosenValue != null) {
-                  if (chosenValue != options.last) {
-                    //options.last = "Other"
-                    repetitionFrequency = chosenValue;
-                    setState(() {});
-                  } else {
-                    AlertDialog alert = AlertDialog(
-                      content: Text("Content"),
-                      actions: [
-                        TextButton(
-                          child: Text("OK"),
-                          onPressed: () {},
+            Row(
+              children: [
+                SizedBox(width: 10),
+                DropdownButton<dynamic>(
+                  items: () {
+                    List<DropdownMenuItem<dynamic>> items = [];
+                    items.add(const DropdownMenuItem<dynamic>(
+                      child: Text(
+                        noRepeat,
+                      ),
+                      value: noRepeat,
+                    ));
+                    for (var value in RepeatCycle.values) {
+                      items.add(DropdownMenuItem<dynamic>(
+                        child: Text(
+                          repeatCycleToUIString(value),
                         ),
-                        TextButton(
-                          child: Text("Cancel"),
-                          onPressed: () {},
-                        ),
-                      ],
-                    );
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return alert;
-                      },
-                    );
-                  }
-                }
-              },
+                        value: value,
+                      ));
+                    }
+
+                    //values.add(noRepeat);
+                    return (items);
+                  }(),
+                  value: chosenRepeatCycle ?? noRepeat,
+                  onChanged: (dynamic chosenValue) {
+                    if (chosenValue != null) {
+                      if (chosenValue == noRepeat)
+                        chosenRepeatCycle = null;
+                      else
+                        chosenRepeatCycle = chosenValue;
+                      setState(() {});
+                    }
+                  },
+                ),
+              ],
+            ),
+            Visibility(
+              visible: chosenRepeatCycle == RepeatCycle.other,
+              child: Column(children: [
+                SizedBox(height: 10),
+                Row(children: [
+                  SizedBox(width: 10),
+                  DropdownButton<int>(
+                    items: [2, 3, 4, 5, 6, 7, 8, 9, 10]
+                        .map((int t) => DropdownMenuItem<int>(
+                      child: Text(t.toString()),
+                      value: t,
+                    ))
+                        .toList(),
+                    value: repeatFrequency.num,
+                    onChanged: (value) {
+                      if (value != null) {
+                        repeatFrequency.num = value;
+                        setState(() {});
+                      }
+                    },
+                  ),
+                  SizedBox(width: 10),
+                  DropdownButton<Tenure>(
+                    items: Tenure.values
+                        .map((Tenure t) => DropdownMenuItem<Tenure>(
+                      child: Text(describeEnum(t)),
+                      value: t,
+                    ))
+                        .toList(),
+                    value: repeatFrequency.tenure,
+                    onChanged: (value) {
+                      if (value != null) {
+                        repeatFrequency.tenure = value;
+                        setState(() {});
+                      }
+                    },
+                  )
+                ])
+              ]),
+            ),
+
+            const SizedBox(height: 40),
+            Text(
+              "Select a List",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            SizedBox(height: 5),
+            Row(
+              children: [
+                SizedBox(width: 10),
+                DropdownButton<String>(
+                  items: dropdownItemCreator(["Default"]),
+                  value: "Default",
+                  onChanged: (value) {},
+                ),
+              ],
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class EditableFieldWithCancelButton extends StatelessWidget {
+  const EditableFieldWithCancelButton({
+    Key? key,
+    required this.hintText,
+    required this.iconData,
+    required this.textController,
+    required this.picker,
+    required this.onCancel,
+    required this.enableCancelButton,
+  }) : super(key: key);
+
+  final String hintText;
+  final IconData iconData;
+  final TextEditingController textController;
+  final void Function() picker;
+  final void Function() onCancel;
+  final bool Function() enableCancelButton;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const SizedBox(width: 5),
+        Flexible(
+          child: TextField(
+            controller: textController,
+            decoration: InputDecoration(
+              contentPadding: EdgeInsets.fromLTRB(0, 10, 0, 5),
+              isDense: true,
+              hintText: hintText,
+              enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(
+                  color: Colors.white60,
+                ),
+              ),
+            ),
+            onTap: picker,
+            enableInteractiveSelection: false,
+            showCursor: false,
+            readOnly: true,
+          ),
+        ),
+        SizedBox(width: 5),
+        CustomIconButton(
+          iconData: iconData,
+          onPressed: picker,
+        ),
+        Visibility(
+            child: CustomIconButton(
+              iconData: Icons.cancel_rounded,
+              onPressed: onCancel,
+            ),
+            visible: enableCancelButton()),
+      ],
     );
   }
 }
